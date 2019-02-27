@@ -1,23 +1,31 @@
 #include "main.h"
 
 int main(int argc, char** argv){
-    size_t *pString;
-    char filename[20] = {}, string[100] = {}, c;
-    FILE *p = NULL;
+    elmntryPckt_type tstPacket = {};
 
-    /* Check for arguments... */
+    /* Check arguments... */
     if(argc < 2){
         printf("To start a program, add file name to arguments...\n");
-        return ERR_NO_FILE;
+        return NO_SUCH_FILE;
     }
 
-    p = fopen(argv[1], "r");
+    file_openFile(argv[1]);
 
-    /* If there is no such file... */
-    if(NULL == p){
-        printf("Argument read error\n");
-        return ERR_NO_FILE;
-    }
+    parser_getPacket(&tstPacket);
+
+    printf("Packet ID is %i\n", tstPacket.packetID);
+    printf("Unit start indicator is %i\n", tstPacket.pldUnitStrtInd);
+    printf("Continuity counter is %i\n", tstPacket.contntyCnt);
+
+    memset(&tstPacket, 0, sizeof(elmntryPckt_type));
+
+    parser_getPacket(&tstPacket);
+
+    printf("Packet ID is %i\n", tstPacket.packetID);
+    printf("Unit start indicator is %i\n", tstPacket.pldUnitStrtInd);
+    printf("Continuity counter is %i\n", tstPacket.contntyCnt);
+
+    file_closeFile();
 
     
 
