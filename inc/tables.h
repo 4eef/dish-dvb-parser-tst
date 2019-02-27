@@ -14,14 +14,14 @@
 typedef struct{
     union{
         uint32_t	header;
-        uint32_t        sync_byte       :8,
+        uint32_t        syncByte        :8,
                         trnspErrInd     :1,
-                        pldUnStrtInd    :1,
-                        trnspPrior      :1,
+                        pldUnitStrtInd  :1,
+                        trnspPriority   :1,
                         packetID        :13,
-                        trnspScrCntr    :2,
-                        adFldContr      :2,
-                        contCnt         :4;
+                        trnspScrmblCntr :2,
+                        adaptFldContr   :2,
+                        contntyCnt      :4;
     };
     uint8_t             data[PAYLOAD_LENGTH_BYTE];
 }elmntryPckt_type;
@@ -31,26 +31,26 @@ typedef struct{
     uint16_t            origNetID;
     uint16_t            reserved0       :4,
                         trnspDscrLngth  :12;
-    size_t              trnspDscr;
+    int                 *pTrnspDscr;
 }trnspStream_type;
 
 typedef struct{
     uint8_t             tableID;
-    uint16_t            sectSyntInd     :1,
+    uint16_t            sectnSyntxInd   :1,
                         reserved0       :3,
-                        sectLngth       :12;
+                        sectnLngth      :12;
     uint16_t            netID;
     uint16_t            reserved1       :2,
                         versionNum      :5,
                         currNextInd     :1,
-                        sectNum         :8;
-    uint8_t             lastSectNum;
+                        sectnNum        :8;
+    uint8_t             lastSectnNum;
     uint16_t            reserved2       :4,
                         netDscrLngth    :12;
-    size_t              *pNetDscr;
+    int              	*pNetDscr;
     uint16_t            reserved3       :4,
                         trnspStrLpLngth :12;
-    trnspStream_type    pTrnspStream;
+    trnspStream_type    *pTrnspStream;
     uint32_t            CRC32;
 }netInfoTable_type;
 
