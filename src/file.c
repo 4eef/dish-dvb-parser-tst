@@ -2,7 +2,6 @@
 
 /* Memory */
 static int fileDscr;
-static uint32_t readCnt;
 
 /* Open a file to read... */
 uint8_t file_openFile(char *pFilePath){
@@ -38,6 +37,7 @@ uint8_t file_closeFile(void){
 
 /* Read portion of data from file and write into buffer */
 uint8_t file_readToBuff(void *pBuff, uint16_t cnt){
+    uint16_t readCnt = 0;
     /* Check for success */
     if(fileDscr <= 0){
         printf("Nothing to read. Open a file first!\n");
@@ -47,9 +47,9 @@ uint8_t file_readToBuff(void *pBuff, uint16_t cnt){
         return BUFFER_PTR_ERROR;
     }
     /* Perform file read */
-    readCnt += read(fileDscr, pBuff, cnt);
-    //readCnt += cnt;
-    printf("Read bytes: %i\n", readCnt);
+    readCnt = read(fileDscr, pBuff, cnt);
+    /* Debug */
+    //printf("Read bytes: %i\n", readCnt);
     return NO_ERROR;
 }
 
