@@ -11,23 +11,9 @@ int main(int argc, char** argv){
 
     file_openFile(argv[1]);
 
-    parser_getPacket(&tstPacket);
+    parser_getAnySection(&tstPacket, pidNit);
 
-    printf("Packet ID is %i\n", tstPacket.packetID);
-    printf("Unit start indicator is %i\n", tstPacket.pldUnitStrtInd);
-    printf("Continuity counter is %i\n", tstPacket.contntyCnt);
-
-    memset(&tstPacket, 0, sizeof(elmntryPckt_type));
-
-    parser_getPacket(&tstPacket);
-
-    printf("Packet ID is %i\n", tstPacket.packetID);
-    printf("Unit start indicator is %i\n", tstPacket.pldUnitStrtInd);
-    printf("Continuity counter is %i\n", tstPacket.contntyCnt);
-
-    file_closeFile();
-
-    
+    file_closeFile();    
 
     return OK;
 }
