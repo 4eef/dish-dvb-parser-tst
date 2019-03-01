@@ -48,6 +48,10 @@ uint8_t file_readToBuff(void *pBuff, uint16_t cnt){
     }
     /* Perform file read */
     readCnt = read(fileDscr, pBuff, cnt);
+    if(readCnt == 0){
+        printf("End of file reached.\n");
+        return END_OF_FILE_REACHED;
+    }
     /* Debug */
     //printf("Read bytes: %i\n", readCnt);
     return NO_ERROR;

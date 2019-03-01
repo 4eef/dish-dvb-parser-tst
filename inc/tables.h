@@ -46,14 +46,14 @@ typedef enum{
 
 /* Elementary packet format */
 typedef struct{
-    uint32_t            syncByte        :8,
-                        trnspErrInd     :1,
-                        pldUnitStrtInd  :1,
-                        trnspPriority   :1,
-                        packetID        :13,
-                        trnspScrmblCntr :2,
-                        adaptFldContr   :2,
-                        contntyCnt      :4;
+    uint8_t             syncByte;
+    uint8_t             trnspErrInd;
+    uint8_t             pldUnitStrtInd;
+    uint8_t             trnspPriority;
+    uint16_t            packetID;
+    uint8_t             trnspScrmblCntr;
+    uint8_t             adaptFldContr;
+    uint8_t             contntyCnt;
     uint8_t             data[PAYLOAD_LENGTH_BYTE];
 }elmntryPckt_type;
 

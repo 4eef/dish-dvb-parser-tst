@@ -15,6 +15,7 @@
 #define NO_FILE_TO_CLOSE                2
 #define ERROR_CLOSING_FILE              3
 #define BUFFER_PTR_ERROR                4
+#define END_OF_FILE_REACHED             5
 
 /* Function prototypes */
 uint8_t file_openFile(char *pFilePath);

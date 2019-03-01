@@ -11,6 +11,25 @@ int main(int argc, char** argv){
 
     file_openFile(argv[1]);
 
+    parser_getAnyPacket(&tstPacket);
+    parser_getAnyPacket(&tstPacket);
+    parser_getAnyPacket(&tstPacket);
+    parser_getAnyPacket(&tstPacket);
+    parser_getAnyPacket(&tstPacket);
+/*
+    parser_getAnyPacket(&tstPacket);
+    printf("1 byte %i\n", tstPacket.syncByte);
+    printf("2 byte %i\n", tstPacket.raw0);
+    printf("3 byte %i\n", tstPacket.packetIdL);
+    printf("4 byte %i\n", tstPacket.raw1);
+    printf("PID is %i\n", ((tstPacket.packetIdH << 8) | tstPacket.packetIdL));
+    parser_getAnyPacket(&tstPacket);
+    printf("1 byte %i\n", tstPacket.syncByte);
+    printf("2 byte %i\n", tstPacket.raw0);
+    printf("3 byte %i\n", tstPacket.packetIdL);
+    printf("4 byte %i\n", tstPacket.raw1);
+    printf("PID is %i\n", ((tstPacket.packetIdH << 8) | tstPacket.packetIdL));
+*/
     parser_getAnySection(&tstPacket, pidNit);
 
     file_closeFile();    

@@ -27,6 +27,7 @@ VPATH		:= $(sort $(SRC_DIRS) $(foreach srcfile, $(SRC_FILES), $(dir $(srcfile)))
 LOCAL_INCLUDES	:= $(foreach dirs, $(INC_DIRS), -I$(dirs))
 PROG_FULL_NAME	:= $(TARG_DIR)/$(PROG_NAME)
 CFLAGS		:= $(LOCAL_INCLUDES)
+CFLAGS += "-g"
 
 # Build all
 build:	checkbuilddirs $(PROG_FULL_NAME)
