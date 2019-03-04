@@ -2,6 +2,8 @@
 
 int main(int argc, char** argv){
     elmntryPckt_type tstPacket = {};
+    uint8_t tstSection[2048] = {};
+    uint16_t sectionLength = 0, fullSectionLength = 0;
 
     /* Check arguments... */
     if(argc < 2){
@@ -30,7 +32,10 @@ int main(int argc, char** argv){
     printf("4 byte %i\n", tstPacket.raw1);
     printf("PID is %i\n", ((tstPacket.packetIdH << 8) | tstPacket.packetIdL));
 */
-    parser_getAnySection(&tstPacket, pidNit);
+    parser_getSection(&tstSection, pidNit);
+    sectionLength = (tstSection[1] << 8) | tstSection[2];
+    fullSectionLength = strlen(&tstSection[0]);
+    printf("Table ID: %i, Section length: %i, Est. section length: %i\n", tstSection[0], sectionLength, fullSectionLength);
 
     file_closeFile();    
 

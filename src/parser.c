@@ -38,23 +38,23 @@ uint8_t parser_getAnyPacket(elmntryPckt_type *pElmntryPckt){
             break;
         }
     }
-    pElmntryPckt->syncByte = readBuff[0];
-    pElmntryPckt->trnspErrInd = (readBuff[1] & 0x80) >> 7;
-    pElmntryPckt->pldUnitStrtInd = (readBuff[1] & 0x40) >> 6;
-    pElmntryPckt->trnspPriority = (readBuff[1] & 0x20) >> 5;
-    pElmntryPckt->packetID = (((readBuff[1] & 0x1F) << 8) | readBuff[2]);
-    pElmntryPckt->trnspScrmblCntr = (readBuff[3] & 0xC0) >> 6;
-    pElmntryPckt->adaptFldContr = (readBuff[3] & 0x30) >> 4;
-    pElmntryPckt->contntyCnt = readBuff[3] & 0xF;
+    pElmntryPckt->syncByte = readBuff[HEADER_SYBC_BYTE_POS];
+    pElmntryPckt->trnspErrInd = (readBuff[HEADER_INDS_PIDH_POS] & HEADER_TEI_MSK) >> 7;
+    pElmntryPckt->pldUnitStrtInd = (readBuff[HEADER_INDS_PIDH_POS] & HEADER_PUSI_MSK) >> 6;
+    pElmntryPckt->trnspPriority = (readBuff[HEADER_INDS_PIDH_POS] & HEADER_TP_MSK) >> 5;
+    pElmntryPckt->packetID = (((readBuff[HEADER_INDS_PIDH_POS] & HEADER_PIDH_MSK) << 8) | readBuff[HEADER_PIDL_POS]);
+    pElmntryPckt->trnspScrmblCntr = (readBuff[HEADER_SERV_FLDS_POS] & HEADER_TSC_MSK) >> 6;
+    pElmntryPckt->adaptFldContr = (readBuff[HEADER_SERV_FLDS_POS] & HEADER_AFC_MSK) >> 4;
+    pElmntryPckt->contntyCnt = readBuff[HEADER_SERV_FLDS_POS] & HEADER_CONT_CNT_MSK;
     memcpy(&pElmntryPckt->data[0], &readBuff[4], PAYLOAD_LENGTH_BYTE);
     return PACKET_GET_SUCCESS;
 }
 
 /* Get table section by table PID */
-uint8_t parser_getAnySection(void *pRxBuff, ePidVals_type pidValue){
+uint8_t parser_getSection(void *pRxBuff, ePidVals_type pidValue){
     bool pcktRxing = false;
-    uint8_t rxStat = 0;
-    uint16_t sctnLngth = 0;//, packetID = 0;
+    uint8_t rxStat = 0, *pMemBuffStrt = NULL, *pMemBuffCurr = NULL;
+    uint16_t sctnLngth = 0, fullSctnLngth = 0;
     uint32_t pcktsSkipped = 0;
     elmntryPckt_type rxPckt = {0};
     /* Check argument pointer */
@@ -68,39 +68,51 @@ uint8_t parser_getAnySection(void *pRxBuff, ePidVals_type pidValue){
         /* Check for errors */
         if(PACKET_READ_ERROR == rxStat){
             // printf("Done reading file.\n");
+            // if packet is already rxing - do not forget free() memory
             return PACKET_READ_ERROR;
         }
         /* Filter it to needed identifier */
-//        packetID = (rxPckt.packetIdH << 8) | rxPckt.packetIdL;
         if(rxPckt.packetID == pidValue){
-            /* Start control */
-//            if((rxPckt.pldUnitStrtInd == 1)){//) && (pcktRxing == false)){
-                pcktRxing = true;
-                /* Allocate memory to copy needed amount of data */
-//                sctnLngth = ((rxPckt.data[(rxPckt.data[0] + 1)] << 8) | rxPckt.data[(rxPckt.data[0] + 2)]) & SECTION_LENGTH_MASK;
-//                printf("Section length is %i\n%i packets skipped.\n", sctnLngth, pcktsSkipped);
-                printf("PID: %i, TEI: %i, PUSI: %i, TSpr: %i, TSC: %i, adaFiCo: %i, cnt: %i\n", rxPckt.packetID, rxPckt.trnspErrInd, rxPckt.pldUnitStrtInd, rxPckt.trnspPriority, rxPckt.trnspScrmblCntr, rxPckt.adaptFldContr, rxPckt.contntyCnt);
-                pcktsSkipped = 0;
-//                return SECTION_GET_READY;
-//            }
-            /* Add data to  */
-            switch(pidValue){
-                case pidNit:
+            /* Start & end control */
+            if(rxPckt.pldUnitStrtInd != 0){
+                /* Start control */
+                if(pcktRxing == false){
+                    pcktRxing = true;
+                    /* Allocate memory to copy needed amount of data */
+                    sctnLngth = ((rxPckt.data[(rxPckt.data[DATA_POINTER_POS] + DATA_SECT_LEN_H_POS)] << 8)
+                                | rxPckt.data[(rxPckt.data[DATA_POINTER_POS] + DATA_SECT_LEN_L_POS)]) & SECTION_LENGTH_MASK;
+                    fullSctnLngth = sctnLngth + DATA_SECT_LEN_L_POS;
+                    pMemBuffStrt = malloc(fullSctnLngth);
+                    pMemBuffCurr = pMemBuffStrt;
+                    /* If memory is not allocated */
+                    if(NULL == pMemBuffStrt){
+                        printf("Memory allocation error!\n");
+                        return ALLOC_ERR;
+                    }
+                    /* First data copy */
+                    memcpy(pMemBuffCurr, &rxPckt.data[(rxPckt.data[DATA_POINTER_POS] + DATA_SECT_LEN_L_POS)],
+                           (PAYLOAD_LENGTH_BYTE - rxPckt.data[DATA_POINTER_POS]));
+                    pMemBuffCurr += PAYLOAD_LENGTH_BYTE - rxPckt.data[DATA_POINTER_POS];
+                }else{ /* End control */
+                    pcktRxing = false;
+                    /* Done copying data */
+                    memcpy(pMemBuffCurr, &rxPckt.data[DATA_PTR_PAYLD_POS], rxPckt.data[DATA_POINTER_POS]);
+                    memcpy(pRxBuff, pMemBuffStrt, fullSctnLngth);
+                    // free(pMemBuffStrt);
                     break;
-                default:
-                    break;
+                }
+            }else{ /* Intermediate data */
+                memcpy(pMemBuffCurr, &rxPckt.data[DATA_DATA_ONLY_POS], PAYLOAD_LENGTH_BYTE);
+                pMemBuffCurr += PAYLOAD_LENGTH_BYTE;
             }
-            /* End control */
-//            if((rxPckt.pldUnitStrtInd == 1) && (pcktRxing == true)){
-//                pcktRxing = false;
-//                /* Done copying data */
-//                break;
-//            }
         }
-//        packetID = 0;
-        pcktsSkipped++;
     }
     return SECTION_GET_READY;
+}
+
+/* Parse section */
+uint8_t parser_parseSection(void){
+    return 0;
 }
 
 

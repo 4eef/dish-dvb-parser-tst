@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "file.h"
 #include "tables.h"
 
@@ -17,9 +18,10 @@
 #define PACKET_NO_SYNC_BYTE             2
 #define POINTER_ERR                     3
 #define SECTION_GET_READY               4
+#define ALLOC_ERR                       5
 
 /* Function prototypes */
 uint8_t parser_getAnyPacket(elmntryPckt_type *pElmntryPckt);
-uint8_t parser_getAnySection(void *pRxBuff, ePidVals_type pidValue);
+uint8_t parser_getSection(void *pRxBuff, ePidVals_type pidValue);
 
 #endif /* PARSER_H */

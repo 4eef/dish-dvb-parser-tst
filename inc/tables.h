@@ -9,7 +9,24 @@
 #define HEADER_LENGTH_BYTE              4
 #define PAYLOAD_LENGTH_BYTE             (PACKET_LENGTH_BYTE - HEADER_LENGTH_BYTE)
 #define HEADER_SYNC_BYTE                0x47
+#define HEADER_SYBC_BYTE_POS            0
+#define HEADER_INDS_PIDH_POS            1
+#define HEADER_PIDL_POS                 2
+#define HEADER_SERV_FLDS_POS            3
+#define HEADER_TEI_MSK                  0x80
+#define HEADER_PUSI_MSK                 0x40
+#define HEADER_TP_MSK                   0x20
+#define HEADER_PIDH_MSK                 0x1F
+#define HEADER_TSC_MSK                  0xC0
+#define HEADER_AFC_MSK                  0x30
+#define HEADER_CONT_CNT_MSK             0xF
 #define SECTION_LENGTH_MASK             0xFFF
+#define DATA_POINTER_POS                0
+#define DATA_DATA_ONLY_POS              0
+#define DATA_PTR_PAYLD_POS              1
+#define DATA_TAB_ID_POS                 1
+#define DATA_SECT_LEN_H_POS             2
+#define DATA_SECT_LEN_L_POS             3
 
 /* Typedefs */
 
