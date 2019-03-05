@@ -53,57 +53,62 @@ uint8_t parser_getAnyPacket(elmntryPckt_type *pElmntryPckt){
 /* Get table section by table PID */
 uint8_t parser_getSection(void *pRxBuff, ePidVals_type pidValue){
     bool pcktRxing = false;
-    uint8_t rxStat = 0, *pMemBuffStrt = NULL, *pMemBuffCurr = NULL;
-    uint16_t sctnLngth = 0, fullSctnLngth = 0;
-    uint32_t pcktsSkipped = 0;
+    uint8_t rxStat = 0, numToCpy = 0, ptrOffs = 0, *pRxBuffCopy = NULL;
+    uint16_t i, sctnLngth = 0, fullSctnLngth = 0;
     elmntryPckt_type rxPckt = {0};
     /* Check argument pointer */
     if(NULL == pRxBuff){
         printf("Error with packet pointer!\n");
         return POINTER_ERR;
     }
+    pRxBuffCopy = pRxBuff;
     while(1){
         /* Get single packet */
         rxStat = parser_getAnyPacket(&rxPckt);
         /* Check for errors */
         if(PACKET_READ_ERROR == rxStat){
             // printf("Done reading file.\n");
-            // if packet is already rxing - do not forget free() memory
             return PACKET_READ_ERROR;
         }
         /* Filter it to needed identifier */
         if(rxPckt.packetID == pidValue){
+            /* Add Counter control */
+            numToCpy = PAYLOAD_LENGTH_BYTE;
+            ptrOffs = 0;
             /* Start & end control */
-            if(rxPckt.pldUnitStrtInd != 0){
+            if((rxPckt.pldUnitStrtInd != 0) && (pcktRxing == false)){
                 /* Start control */
-                if(pcktRxing == false){
-                    pcktRxing = true;
-                    /* Allocate memory to copy needed amount of data */
-                    sctnLngth = ((rxPckt.data[(rxPckt.data[DATA_POINTER_POS] + DATA_SECT_LEN_H_POS)] << 8)
-                                | rxPckt.data[(rxPckt.data[DATA_POINTER_POS] + DATA_SECT_LEN_L_POS)]) & SECTION_LENGTH_MASK;
-                    fullSctnLngth = sctnLngth + DATA_SECT_LEN_L_POS;
-                    pMemBuffStrt = malloc(fullSctnLngth);
-                    pMemBuffCurr = pMemBuffStrt;
-                    /* If memory is not allocated */
-                    if(NULL == pMemBuffStrt){
-                        printf("Memory allocation error!\n");
-                        return ALLOC_ERR;
-                    }
-                    /* First data copy */
-                    memcpy(pMemBuffCurr, &rxPckt.data[(rxPckt.data[DATA_POINTER_POS] + DATA_SECT_LEN_L_POS)],
-                           (PAYLOAD_LENGTH_BYTE - rxPckt.data[DATA_POINTER_POS]));
-                    pMemBuffCurr += PAYLOAD_LENGTH_BYTE - rxPckt.data[DATA_POINTER_POS];
-                }else{ /* End control */
-                    pcktRxing = false;
-                    /* Done copying data */
-                    memcpy(pMemBuffCurr, &rxPckt.data[DATA_PTR_PAYLD_POS], rxPckt.data[DATA_POINTER_POS]);
-                    memcpy(pRxBuff, pMemBuffStrt, fullSctnLngth);
-                    // free(pMemBuffStrt);
-                    break;
+                pcktRxing = true;
+                /* Retreive section length and check it */
+                sctnLngth = ((rxPckt.data[(rxPckt.data[DATA_POINTER_POS] + DATA_SECT_LEN_H_POS)] << 8) |
+                              rxPckt.data[(rxPckt.data[DATA_POINTER_POS] + DATA_SECT_LEN_L_POS)]) & SECTION_LENGTH_MASK;
+                if(sctnLngth >= SECTION_LENGTH_MAX){
+                    printf("Section is too large!\n");
+                    return SECTION_LENGTH_ERR;
                 }
-            }else{ /* Intermediate data */
-                memcpy(pMemBuffCurr, &rxPckt.data[DATA_DATA_ONLY_POS], PAYLOAD_LENGTH_BYTE);
-                pMemBuffCurr += PAYLOAD_LENGTH_BYTE;
+                /* Calculate full section length */
+                fullSctnLngth = sctnLngth + DATA_SECT_LEN_L_POS;
+                /* Calculate offsets */
+                numToCpy = PAYLOAD_LENGTH_BYTE - rxPckt.data[DATA_POINTER_POS] - 1;
+                ptrOffs = rxPckt.data[DATA_POINTER_POS] + DATA_PTR_PAYLD_POS;
+            }
+            /* Receive the packet */
+            if(pcktRxing == true){
+                /* for() used instead of memcpy() for purpose */
+                for(i = 0; i < numToCpy; i++){
+                    if(fullSctnLngth != 0){
+                        fullSctnLngth--;
+                        *pRxBuffCopy = rxPckt.data[i + ptrOffs];
+                        pRxBuffCopy++;
+                    }else{ /* Done copying */
+                        break;
+                    }
+                }
+                /* End control */
+                if(fullSctnLngth == 0){
+                    pcktRxing = false;
+                    break;
+                } 
             }
         }
     }

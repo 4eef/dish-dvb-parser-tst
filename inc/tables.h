@@ -21,6 +21,7 @@
 #define HEADER_AFC_MSK                  0x30
 #define HEADER_CONT_CNT_MSK             0xF
 #define SECTION_LENGTH_MASK             0xFFF
+#define SECTION_LENGTH_MAX              1021
 #define DATA_POINTER_POS                0
 #define DATA_DATA_ONLY_POS              0
 #define DATA_PTR_PAYLD_POS              1

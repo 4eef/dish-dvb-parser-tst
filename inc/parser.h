@@ -18,7 +18,7 @@
 #define PACKET_NO_SYNC_BYTE             2
 #define POINTER_ERR                     3
 #define SECTION_GET_READY               4
-#define ALLOC_ERR                       5
+#define SECTION_LENGTH_ERR              5
 
 /* Function prototypes */
 uint8_t parser_getAnyPacket(elmntryPckt_type *pElmntryPckt);
