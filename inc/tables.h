@@ -20,6 +20,7 @@
 #define HEADER_TSC_MSK                  0xC0
 #define HEADER_AFC_MSK                  0x30
 #define HEADER_CONT_CNT_MSK             0xF
+#define SECTION_SYNT_IND_MASK           0x80
 #define SECTION_LENGTH_MASK             0xFFF
 #define SECTION_LENGTH_MAX              1021
 #define DATA_POINTER_POS                0
@@ -28,6 +29,10 @@
 #define DATA_TAB_ID_POS                 1
 #define DATA_SECT_LEN_H_POS             2
 #define DATA_SECT_LEN_L_POS             3
+#define SECTION_VERS_NUM_MASK           0x3E
+#define SECTION_CURR_TEX_IND_MASK       0x1
+#define SECTION_NED_DSCR_LEN_MASK       0xFFF
+#define NET_NAME_DSCR_NAME_LNGTH        256
 
 /* Typedefs */
 
@@ -79,7 +84,7 @@ typedef struct{
 typedef struct{
     uint8_t             dscrTag;
     uint8_t             dscrLngth;
-    char                *pDscr;
+    char                name[NET_NAME_DSCR_NAME_LNGTH];
 }netNameDscr_type;
 
 typedef struct{
@@ -92,22 +97,47 @@ typedef struct{
 typedef struct{
     uint8_t             dscrTag;
     uint8_t             dscrLngth;
-    uint8_t             *pStffngByte;
-}stffngDscr_type;
+    uint32_t            frequency;
+    uint16_t            orbPosition;
+    uint8_t             eastWest;
+    uint8_t             polarization;
+    uint8_t             rollOff_00;
+    uint8_t             modSys;
+    uint8_t             modType;
+    uint32_t            symRate;
+    uint8_t             fecInner;
+}satDlvrSysDscr_type;
 
 typedef struct{
     uint8_t             dscrTag;
     uint8_t             dscrLngth;
-    uint32_t            frequency;
-    uint16_t            orbPosition;
-    uint8_t             eastWest        :1,
-                        polarization    :2,
-                        rollOff_00      :2,
-                        modSys          :1,
-                        modType         :2;
-    uint32_t            symRate         :28,
-                        fecInner        :4;
-}satDlvrSysDscr_type;
+    uint32_t            centreFreq;
+    uint8_t             bandwidth;
+    uint8_t             priority;
+    uint8_t             timSlicInd;
+    uint8_t             mpeFecInd;
+    uint8_t             constellation;
+    uint8_t             hierarchyInfo;
+    uint8_t             codeRateHpStr;
+    uint8_t             codeRateLpStr;
+    uint8_t             guardInterval;
+    uint8_t             txMode;
+    uint8_t             otherFreqFlag;
+    uint32_t            reserved0;
+}terrDlvrSysDscr_type;
+
+typedef struct{
+    uint8_t             dscrTag;
+    uint8_t             dscrLngth;
+    uint8_t             codingType;
+    uint32_t            *pCentreFreq;
+}freqListDscr_type;
+/*
+typedef struct{
+    uint8_t             dscrTag;
+    uint8_t             dscrLngth;
+    uint8_t             *pStffngByte;
+}stffngDscr_type;
 
 typedef struct{
     uint8_t             dscrTag;
@@ -166,25 +196,6 @@ typedef struct{
 }linkageDscr_type;
 
 typedef struct{
-    uint8_t             dscrTag;
-    uint8_t             dscrLngth;
-    uint32_t            centreFreq;
-    uint8_t             bandwidth       :3,
-                        priority        :1,
-                        timSlicInd      :1,
-                        mpeFecInd       :1,
-                        reserved0       :2;
-    uint16_t            constellation   :2,
-                        hierarchyInfo   :3,
-                        codeRateHpStr   :3,
-                        codeRateLpStr   :3,
-                        guardInterval   :2,
-                        txMode          :2,
-                        otherFreqFlag   :1;
-    uint32_t            reserved1;
-}terrDlvrSysDscr_type;
-
-typedef struct{
     uint32_t            ISO639LngCode   :24,
                         netNameLngth    :8;
     char                *pNetName;
@@ -201,14 +212,6 @@ typedef struct{
     uint8_t             dscrLngth;
     uint32_t            prvDataSpecifier;
 }prvDatSpecDscr_type;
-
-typedef struct{
-    uint8_t             dscrTag;
-    uint8_t             dscrLngth;
-    uint8_t             reserved0       :6,
-                        codingType      :2;
-    uint32_t            *pCentreFreq;
-}freqListDscr_type;
 
 typedef struct{
     uint8_t             cellIdExt;
@@ -302,32 +305,27 @@ typedef struct{
                         ctrrRemAcOvrInt :2,
                         doNotApplyRevoc :1;
 }ftaContMngDscr_type;
-
+*/
 /* NIT Packet organization */
 typedef struct{
     uint16_t            trnspStrID;
     uint16_t            origNetID;
-    uint16_t            reserved0       :4,
-                        trnspDscrLngth  :12;
+    uint16_t            trnspDscrLngth;
     void                *pTrnspDscr;
 }trnspStream_type;
 
 typedef struct{
     uint8_t             tableID;
-    uint16_t            sectnSyntxInd   :1,
-                        reserved0       :3,
-                        sectnLngth      :12;
+    uint8_t             sectnSyntxInd;
+    uint16_t            sectnLngth;
     uint16_t            netID;
-    uint16_t            reserved1       :2,
-                        versionNum      :5,
-                        currNextInd     :1,
-                        sectnNum        :8;
+    uint8_t             versionNum;
+    uint8_t             currNextInd;
+    uint8_t             sectnNum;
     uint8_t             lastSectnNum;
-    uint16_t            reserved2       :4,
-                        netDscrLngth    :12;
-    netNameDscr_type    *pNetDscr;
-    uint16_t            reserved3       :4,
-                        trnspStrLpLngth :12;
+    uint16_t            netDscrLngth;
+    netNameDscr_type    netDscr;
+    uint16_t            trnspStrLpLngth;
     trnspStream_type    *pTrnspStream;
     uint32_t            CRC32;
 }netInfoTable_type;
