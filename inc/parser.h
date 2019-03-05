@@ -19,9 +19,13 @@
 #define POINTER_ERR                     3
 #define SECTION_GET_READY               4
 #define SECTION_LENGTH_ERR              5
+#define SECTION_CONTINUITY_ERR          6
+#define SECTION_PARSED                  7
+#define SECTION_PARSE_FAIL              8
 
 /* Function prototypes */
 uint8_t parser_getAnyPacket(elmntryPckt_type *pElmntryPckt);
-uint8_t parser_getSection(void *pRxBuff, ePidVals_type pidValue);
+uint8_t parser_getSection(void *pRawSctn, ePidVals_type pidValue);
+uint8_t parser_parseSection(void *pTableSctn, void *pRawSctn, ePidVals_type pidValue);
 
 #endif /* PARSER_H */

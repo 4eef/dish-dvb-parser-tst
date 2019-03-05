@@ -3,7 +3,7 @@
 /* Memory */
 
 /* Inner mechanisms function prototypes */
-void doSomething(void);
+uint8_t parseNit(netInfoTable_type *pTableSctn, void *pRawSctn);
 
 
 /* Interface functions */
@@ -12,6 +12,7 @@ void doSomething(void);
 uint8_t parser_getAnyPacket(elmntryPckt_type *pElmntryPckt){
     uint8_t status, readBuff[PACKET_LENGTH_BYTE] = {};
     uint16_t i = 0;
+
     /* Check argument pointer */
     if(NULL == pElmntryPckt){
         printf("Error with packet pointer!\n");
@@ -47,21 +48,23 @@ uint8_t parser_getAnyPacket(elmntryPckt_type *pElmntryPckt){
     pElmntryPckt->adaptFldContr = (readBuff[HEADER_SERV_FLDS_POS] & HEADER_AFC_MSK) >> 4;
     pElmntryPckt->contntyCnt = readBuff[HEADER_SERV_FLDS_POS] & HEADER_CONT_CNT_MSK;
     memcpy(&pElmntryPckt->data[0], &readBuff[4], PAYLOAD_LENGTH_BYTE);
+
     return PACKET_GET_SUCCESS;
 }
 
 /* Get table section by table PID */
-uint8_t parser_getSection(void *pRxBuff, ePidVals_type pidValue){
+uint8_t parser_getSection(void *pRawSctn, ePidVals_type pidValue){
     bool pcktRxing = false;
-    uint8_t rxStat = 0, numToCpy = 0, ptrOffs = 0, *pRxBuffCopy = NULL;
+    uint8_t rxStat = 0, numToCpy = 0, ptrOffs = 0, contCnt = 0, *pRxBuffCopy = NULL;
     uint16_t i, sctnLngth = 0, fullSctnLngth = 0;
     elmntryPckt_type rxPckt = {0};
+
     /* Check argument pointer */
-    if(NULL == pRxBuff){
+    if(NULL == pRawSctn){
         printf("Error with packet pointer!\n");
         return POINTER_ERR;
     }
-    pRxBuffCopy = pRxBuff;
+    pRxBuffCopy = pRawSctn;
     while(1){
         /* Get single packet */
         rxStat = parser_getAnyPacket(&rxPckt);
@@ -72,7 +75,7 @@ uint8_t parser_getSection(void *pRxBuff, ePidVals_type pidValue){
         }
         /* Filter it to needed identifier */
         if(rxPckt.packetID == pidValue){
-            /* Add Counter control */
+            /* Counter control */
             numToCpy = PAYLOAD_LENGTH_BYTE;
             ptrOffs = 0;
             /* Start & end control */
@@ -82,7 +85,7 @@ uint8_t parser_getSection(void *pRxBuff, ePidVals_type pidValue){
                 /* Retreive section length and check it */
                 sctnLngth = ((rxPckt.data[(rxPckt.data[DATA_POINTER_POS] + DATA_SECT_LEN_H_POS)] << 8) |
                               rxPckt.data[(rxPckt.data[DATA_POINTER_POS] + DATA_SECT_LEN_L_POS)]) & SECTION_LENGTH_MASK;
-                if(sctnLngth >= SECTION_LENGTH_MAX){
+                if(sctnLngth > SECTION_LENGTH_MAX){
                     printf("Section is too large!\n");
                     return SECTION_LENGTH_ERR;
                 }
@@ -91,15 +94,24 @@ uint8_t parser_getSection(void *pRxBuff, ePidVals_type pidValue){
                 /* Calculate offsets */
                 numToCpy = PAYLOAD_LENGTH_BYTE - rxPckt.data[DATA_POINTER_POS] - 1;
                 ptrOffs = rxPckt.data[DATA_POINTER_POS] + DATA_PTR_PAYLD_POS;
+                /* Copy continuity counter */
+                contCnt = rxPckt.contntyCnt;
             }
-            /* Receive the packet */
+            /* Receive the packet and copy data */
             if(pcktRxing == true){
+                /* Continuity control */
+                if(contCnt != rxPckt.contntyCnt){
+                    pcktRxing = false;
+                    printf("Section continuity check failed!\n");
+                    return SECTION_CONTINUITY_ERR;
+                }
+                contCnt++;
                 /* for() used instead of memcpy() for purpose */
                 for(i = 0; i < numToCpy; i++){
                     if(fullSctnLngth != 0){
-                        fullSctnLngth--;
                         *pRxBuffCopy = rxPckt.data[i + ptrOffs];
                         pRxBuffCopy++;
+                        fullSctnLngth--;
                     }else{ /* Done copying */
                         break;
                     }
@@ -112,19 +124,79 @@ uint8_t parser_getSection(void *pRxBuff, ePidVals_type pidValue){
             }
         }
     }
+
     return SECTION_GET_READY;
 }
 
 /* Parse section */
-uint8_t parser_parseSection(void){
-    return 0;
+uint8_t parser_parseSection(void *pTableSctn, void *pRawSctn, ePidVals_type pidValue){
+    uint8_t parseStatus = SECTION_PARSE_FAIL;
+
+    /* Pointers checks */
+    if(NULL == pTableSctn){
+        printf("Pointer to destination table section error!\n");
+        return POINTER_ERR;
+    }
+    if(NULL == pRawSctn){
+        printf("Pointer to source raw section error!\n");
+        return POINTER_ERR;
+    }
+    /* Parsers calls */
+    switch(pidValue){
+        case pidNit:
+            parseStatus = parseNit(pTableSctn, pRawSctn);
+            break;
+        default:
+            break;
+    }
+
+    return parseStatus;
 }
 
 
 /* Inner functions */
 
 /* Do something */
-void doSomething(void){
+uint8_t parseNit(netInfoTable_type *pTableSctn, void *pRawSctn){
+    uint8_t status = SECTION_PARSE_FAIL, *pRawSctnCopy, i;
+    pRawSctnCopy = pRawSctn;
 
+    /* Fill the section */
+    pTableSctn->tableID = *pRawSctnCopy;
+    pRawSctnCopy++;
+    pTableSctn->sectnSyntxInd = *pRawSctnCopy & SECTION_SYNT_IND_MASK;
+    pTableSctn->sectnLngth = (*pRawSctnCopy << 8) & SECTION_LENGTH_MASK;
+    pRawSctnCopy++;
+    pTableSctn->sectnLngth |= *pRawSctnCopy;
+    pRawSctnCopy++;
+    pTableSctn->netID = *pRawSctnCopy << 8;
+    pRawSctnCopy++;
+    pTableSctn->netID |= *pRawSctnCopy;
+    pRawSctnCopy++;
+    pTableSctn->versionNum = (*pRawSctnCopy & SECTION_VERS_NUM_MASK) >> 1;
+    pTableSctn->currNextInd = *pRawSctnCopy & SECTION_CURR_TEX_IND_MASK;
+    pRawSctnCopy++;
+    pTableSctn->sectnNum = *pRawSctnCopy;
+    pRawSctnCopy++;
+    pTableSctn->lastSectnNum = *pRawSctnCopy;
+    pRawSctnCopy++;
+    pTableSctn->netDscrLngth = (*pRawSctnCopy << 8) & SECTION_NED_DSCR_LEN_MASK;
+    pRawSctnCopy++;
+    pTableSctn->netDscrLngth |= *pRawSctnCopy;
+    pRawSctnCopy++;
+    pTableSctn->netDscr.dscrTag = *pRawSctnCopy;
+    pRawSctnCopy++;
+    pTableSctn->netDscr.dscrLngth = *pRawSctnCopy;
+    pRawSctnCopy++;
+    for(i = 0; i < pTableSctn->netDscr.dscrLngth; i++){
+        pTableSctn->netDscr.name[i] = *pRawSctnCopy;
+        pRawSctnCopy++;
+    }
+/*
+    pTableSctn->trnspStrLpLngth
+    pTableSctn->pTrnspStream
+    pTableSctn->CRC32
+*/
+    return status;
 }
 
