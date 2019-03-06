@@ -23,9 +23,16 @@
 #define SECTION_PARSED                  7
 #define SECTION_PARSE_FAIL              8
 
+/* Exported variables */
+extern netInfoTable_type nit;
+extern srvcLstDscr_type srvcLstDscr;
+extern freqListDscr_type freqListDscr;
+extern satDlvrSysDscr_type satDlvrSysDscr;
+extern terrDlvrSysDscr_type terrDlvrSysDscr;
+
 /* Function prototypes */
 uint8_t parser_getAnyPacket(elmntryPckt_type *pElmntryPckt);
 uint8_t parser_getSection(void *pRawSctn, ePidVals_type pidValue);
-uint8_t parser_parseSection(void *pTableSctn, void *pRawSctn, ePidVals_type pidValue);
+uint8_t parser_parseSection(void *pRawSctn, ePidVals_type pidValue);
 
 #endif /* PARSER_H */

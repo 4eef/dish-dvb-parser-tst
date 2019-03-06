@@ -1,8 +1,7 @@
 #include "main.h"
 
 int main(int argc, char** argv){
-    netInfoTable_type nit = {0};
-    uint8_t tst[1024] = {0};
+    uint8_t rawData[SECTION_LENGTH_FULL_MAX] = {0};
     uint16_t sectionLength = 0, i;
 
     /* Check arguments... */
@@ -13,11 +12,13 @@ int main(int argc, char** argv){
 
     file_openFile(argv[1]);
 
-    parser_getSection(&tst, pidNit);
-    parser_parseSection(&nit, &tst, pidNit);
+    parser_getSection(&rawData, pidNit);
+    parser_parseSection(&rawData, pidNit);
     printf("Table ID: %i\nSection length: %i\nNetwork ID: %i\nVersion: %i\nSection: %i/%i\n",
             nit.tableID, nit.sectnLngth, nit.netID, nit.versionNum, nit.sectnNum, nit.lastSectnNum);
-    printf("Net name length: %i\nNetwork name: %s\n", nit.netDscr.dscrLngth, &nit.netDscr.name[0]);
+//    printf("Network dscr len: %i\nTransport dscr loop len: %i\nTransport dscr len: %i\nDscr tag: %i\nDscr len: %i\n",
+//           nit.netDscrLngth, nit.trnspStrLpLngth, nit.trnspStream.trnspDscrLngth, nit.trnspStream.dscrTag, nit.trnspStream.dscrLen);
+    printf("loop pointers: %i\n", nit.dscrLoopPtrsNum);
 
     file_closeFile();    
 

@@ -10,7 +10,14 @@
 #include "tables.h"
 
 /* Defines */
-#define OK                      0
+#define OK                              0
+
+/* Exported variables */
+extern netInfoTable_type nit;
+extern srvcLstDscr_type srvcLstDscr;
+extern freqListDscr_type freqListDscr;
+extern satDlvrSysDscr_type satDlvrSysDscr;
+extern terrDlvrSysDscr_type terrDlvrSysDscr;
 
 /* Function prototypes */
 int main(int argc, char *argv[]);

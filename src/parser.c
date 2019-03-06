@@ -1,9 +1,23 @@
 #include "parser.h"
 
 /* Memory */
+netInfoTable_type nit;
+dummyDscr_type dummyDscr;
+srvcLstDscr_type srvcLstDscr;
+freqListDscr_type freqListDscr;
+satDlvrSysDscr_type satDlvrSysDscr;
+terrDlvrSysDscr_type terrDlvrSysDscr;
+
 
 /* Inner mechanisms function prototypes */
-uint8_t parseNit(netInfoTable_type *pTableSctn, void *pRawSctn);
+void nitInit(void);
+uint8_t parseNit(void *pRawSctn);
+void parseNetNameDscr(void *pRawSctn);
+uint8_t parseTrnspLoop(uint16_t loopLngth, void *pRawSctn);
+uint8_t parseSrvcLstDscr(void *pRawSctn);
+uint8_t parseFreqListDscr(void *pRawSctn);
+uint8_t parseSatDlvrSysDscr(void *pRawSctn);
+uint8_t parseTerrDlvrSysDscr(void *pRawSctn);
 
 
 /* Interface functions */
@@ -129,14 +143,10 @@ uint8_t parser_getSection(void *pRawSctn, ePidVals_type pidValue){
 }
 
 /* Parse section */
-uint8_t parser_parseSection(void *pTableSctn, void *pRawSctn, ePidVals_type pidValue){
+uint8_t parser_parseSection(void *pRawSctn, ePidVals_type pidValue){
     uint8_t parseStatus = SECTION_PARSE_FAIL;
 
-    /* Pointers checks */
-    if(NULL == pTableSctn){
-        printf("Pointer to destination table section error!\n");
-        return POINTER_ERR;
-    }
+    /* Pointer check */
     if(NULL == pRawSctn){
         printf("Pointer to source raw section error!\n");
         return POINTER_ERR;
@@ -144,7 +154,7 @@ uint8_t parser_parseSection(void *pTableSctn, void *pRawSctn, ePidVals_type pidV
     /* Parsers calls */
     switch(pidValue){
         case pidNit:
-            parseStatus = parseNit(pTableSctn, pRawSctn);
+            parseStatus = parseNit(pRawSctn);
             break;
         default:
             break;
@@ -156,47 +166,130 @@ uint8_t parser_parseSection(void *pTableSctn, void *pRawSctn, ePidVals_type pidV
 
 /* Inner functions */
 
-/* Do something */
-uint8_t parseNit(netInfoTable_type *pTableSctn, void *pRawSctn){
+/* Parse NIT */
+uint8_t parseNit(void *pRawSctn){
     uint8_t status = SECTION_PARSE_FAIL, *pRawSctnCopy, i;
     pRawSctnCopy = pRawSctn;
 
     /* Fill the section */
-    pTableSctn->tableID = *pRawSctnCopy;
+    nit.tableID = *pRawSctnCopy;
     pRawSctnCopy++;
-    pTableSctn->sectnSyntxInd = *pRawSctnCopy & SECTION_SYNT_IND_MASK;
-    pTableSctn->sectnLngth = (*pRawSctnCopy << 8) & SECTION_LENGTH_MASK;
+    nit.sectnSyntxInd = *pRawSctnCopy & SECTION_SYNT_IND_MASK;
+    nit.sectnLngth = (*pRawSctnCopy << 8) & SECTION_LENGTH_MASK;
     pRawSctnCopy++;
-    pTableSctn->sectnLngth |= *pRawSctnCopy;
+    nit.sectnLngth |= *pRawSctnCopy;
     pRawSctnCopy++;
-    pTableSctn->netID = *pRawSctnCopy << 8;
+    nit.netID = *pRawSctnCopy << 8;
     pRawSctnCopy++;
-    pTableSctn->netID |= *pRawSctnCopy;
+    nit.netID |= *pRawSctnCopy;
     pRawSctnCopy++;
-    pTableSctn->versionNum = (*pRawSctnCopy & SECTION_VERS_NUM_MASK) >> 1;
-    pTableSctn->currNextInd = *pRawSctnCopy & SECTION_CURR_TEX_IND_MASK;
+    nit.versionNum = (*pRawSctnCopy & SECTION_VERS_NUM_MASK) >> 1;
+    nit.currNextInd = *pRawSctnCopy & SECTION_CURR_TEX_IND_MASK;
     pRawSctnCopy++;
-    pTableSctn->sectnNum = *pRawSctnCopy;
+    nit.sectnNum = *pRawSctnCopy;
     pRawSctnCopy++;
-    pTableSctn->lastSectnNum = *pRawSctnCopy;
+    nit.lastSectnNum = *pRawSctnCopy;
     pRawSctnCopy++;
-    pTableSctn->netDscrLngth = (*pRawSctnCopy << 8) & SECTION_NED_DSCR_LEN_MASK;
+    nit.netDscrLngth = (*pRawSctnCopy << 8) & SECTION_DSCR_LEN_MASK;
     pRawSctnCopy++;
-    pTableSctn->netDscrLngth |= *pRawSctnCopy;
+    nit.netDscrLngth |= *pRawSctnCopy;
     pRawSctnCopy++;
-    pTableSctn->netDscr.dscrTag = *pRawSctnCopy;
+    /* Check network name descriptor length */
+    if(nit.netDscrLngth != 0){
+        parseNetNameDscr(pRawSctnCopy);
+        pRawSctnCopy += nit.netDscrLngth;
+    }
+    nit.trnspStrLpLngth = (*pRawSctnCopy << 8) & SECTION_DSCR_LEN_MASK;
     pRawSctnCopy++;
-    pTableSctn->netDscr.dscrLngth = *pRawSctnCopy;
+    nit.trnspStrLpLngth |= *pRawSctnCopy;
     pRawSctnCopy++;
-    for(i = 0; i < pTableSctn->netDscr.dscrLngth; i++){
-        pTableSctn->netDscr.name[i] = *pRawSctnCopy;
+    /* Check transport descriptors length */
+    if(nit.trnspStrLpLngth != 0){
+        nit.dscrLoopPtrsNum = parseTrnspLoop(nit.trnspStrLpLngth, pRawSctnCopy);
+        pRawSctnCopy += nit.trnspStrLpLngth;
+    }
+    nit.CRC32 = *pRawSctnCopy << 24;
+    pRawSctnCopy++;
+    nit.CRC32 |= *pRawSctnCopy << 16;
+    pRawSctnCopy++;
+    nit.CRC32 |= *pRawSctnCopy << 8;
+    pRawSctnCopy++;
+    nit.CRC32 |= *pRawSctnCopy;
+    /* Return parsed section table ID */
+    status = nit.tableID;
+
+    return status;
+}
+
+/* Network name parse function */
+void parseNetNameDscr(void *pRawSctn){
+    uint8_t i, *pRawSctnCopy;
+    pRawSctnCopy = pRawSctn;
+
+    /* Get network name descriptor details */
+    nit.netDscr.dscrTag = *pRawSctnCopy;
+    pRawSctnCopy++;
+    nit.netDscr.dscrLngth = *pRawSctnCopy;
+    pRawSctnCopy++;
+    for(i = 0; i < nit.netDscr.dscrLngth; i++){
+        nit.netDscr.name[i] = *pRawSctnCopy;
         pRawSctnCopy++;
     }
-/*
-    pTableSctn->trnspStrLpLngth
-    pTableSctn->pTrnspStream
-    pTableSctn->CRC32
-*/
-    return status;
+}
+
+/* Transport dtream loop parse function */
+uint8_t parseTrnspLoop(uint16_t loopLngth, void *pRawSctn){
+    uint8_t i, *pRawSctnCopy, trnspNum = 0, dscrTag, numToCopy = 0;
+    uint16_t loopLngthCopy = loopLngth, dscrsLngth = 0;
+    pRawSctnCopy = pRawSctn;
+
+    do{
+        /* Get TS header */
+        nit.pTrnspStream[trnspNum]->trnspStrID = *pRawSctnCopy << 8;
+        pRawSctnCopy++;
+        nit.pTrnspStream[trnspNum]->trnspStrID |= *pRawSctnCopy;
+        pRawSctnCopy++;
+        nit.pTrnspStream[trnspNum]->origNetID = *pRawSctnCopy << 8;
+        pRawSctnCopy++;
+        nit.pTrnspStream[trnspNum]->origNetID |= *pRawSctnCopy;
+        pRawSctnCopy++;
+        nit.pTrnspStream[trnspNum]->trnspDscrLngth = (*pRawSctnCopy << 8) & SECTION_DSCR_LEN_MASK;
+        pRawSctnCopy++;
+        nit.pTrnspStream[trnspNum]->trnspDscrLngth |= *pRawSctnCopy;
+        pRawSctnCopy++;
+        dscrsLngth = nit.pTrnspStream[trnspNum]->trnspDscrLngth;
+        do{
+            /* Get descriptor tag */
+            dscrTag = *pRawSctnCopy;
+            switch(dscrTag){
+//                case dscrServLst:
+//                    break;
+//                case dscrSatDlvrSys:
+//                    break;
+//                case dscrTerrDlvrSys:
+//                    break;
+//                case dscrFreqList:
+//                    break;
+                default:
+                    /* Get descriptor length */
+                    pRawSctnCopy++;
+                    numToCopy = *pRawSctnCopy;
+                    pRawSctnCopy++;
+                    /* Preset pointer to a next descriptor */
+                    pRawSctnCopy += numToCopy;
+                    dscrsLngth -= (DESCRIPTOR_HEADER_SIZE_BYTE + numToCopy);
+                    /* Set pointer to a dummy descriptor */
+                    nit.pTrnspStream[trnspNum]->pTrnspDscr[nit.pTrnspStream[trnspNum]->dscrPtrsNum] = &dummyDscr;
+                    nit.pTrnspStream[trnspNum]->dscrPtrsNum++;
+                    dummyDscr.dscrTag = dscrDummy;
+                    break;
+            }
+            dscrsLngth -= (DESCRIPTOR_HEADER_SIZE_BYTE + numToCopy);
+        }while(dscrsLngth != 0);
+        trnspNum++;
+        loopLngthCopy -= (TS_HEADER_SIZE_BYTE + dscrsLngth);
+    }while(loopLngthCopy != 0);
+
+    return trnspNum;
 }
 

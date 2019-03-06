@@ -23,6 +23,7 @@
 #define SECTION_SYNT_IND_MASK           0x80
 #define SECTION_LENGTH_MASK             0xFFF
 #define SECTION_LENGTH_MAX              1021
+#define SECTION_LENGTH_FULL_MAX         (SECTION_LENGTH_MAX + 3)
 #define DATA_POINTER_POS                0
 #define DATA_DATA_ONLY_POS              0
 #define DATA_PTR_PAYLD_POS              1
@@ -31,8 +32,12 @@
 #define DATA_SECT_LEN_L_POS             3
 #define SECTION_VERS_NUM_MASK           0x3E
 #define SECTION_CURR_TEX_IND_MASK       0x1
-#define SECTION_NED_DSCR_LEN_MASK       0xFFF
+#define SECTION_DSCR_LEN_MASK           0xFFF
 #define NET_NAME_DSCR_NAME_LNGTH        256
+#define NIT_TABLES_NUM                  2
+#define DESCRIPTORS_POSSIBLE_NUM        256
+#define TS_HEADER_SIZE_BYTE             6
+#define DESCRIPTOR_HEADER_SIZE_BYTE     2
 
 /* Typedefs */
 
@@ -64,7 +69,8 @@ typedef enum{
     dscrS2DlvrSys       = 0x79,
     dscrXaitLoc         = 0x7D,
     dscrFtaContMng      = 0x7E,
-    dscrExt             = 0x7F
+    dscrExt             = 0x7F,
+    dscrDummy           = 0xFF
 }eDscrTags_type;
 
 /* Elementary packet format */
@@ -81,6 +87,11 @@ typedef struct{
 }elmntryPckt_type;
 
 /* DESCRIPTORS */
+typedef struct{
+    uint8_t             dscrTag;
+    uint8_t             dscrLngth;
+}dummyDscr_type;
+
 typedef struct{
     uint8_t             dscrTag;
     uint8_t             dscrLngth;
@@ -311,7 +322,8 @@ typedef struct{
     uint16_t            trnspStrID;
     uint16_t            origNetID;
     uint16_t            trnspDscrLngth;
-    void                *pTrnspDscr;
+    uint8_t             dscrPtrsNum;
+    void                *pTrnspDscr[DESCRIPTORS_POSSIBLE_NUM];
 }trnspStream_type;
 
 typedef struct{
@@ -326,7 +338,8 @@ typedef struct{
     uint16_t            netDscrLngth;
     netNameDscr_type    netDscr;
     uint16_t            trnspStrLpLngth;
-    trnspStream_type    *pTrnspStream;
+    uint8_t             dscrLoopPtrsNum;
+    trnspStream_type    *pTrnspStream[DESCRIPTORS_POSSIBLE_NUM];
     uint32_t            CRC32;
 }netInfoTable_type;
 
