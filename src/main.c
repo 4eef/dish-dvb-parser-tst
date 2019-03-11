@@ -1,8 +1,7 @@
 #include "main.h"
 
 int main(int argc, char** argv){
-    uint8_t rawData[SECTION_LENGTH_FULL_MAX] = {0};
-    uint16_t sectionLength = 0, i;
+    uint8_t i, rawData[SECTION_LENGTH_FULL_MAX] = {0};
 
     /* Check arguments... */
     if(argc < 2){
@@ -12,13 +11,24 @@ int main(int argc, char** argv){
 
     file_openFile(argv[1]);
 
-    parser_getSection(&rawData, pidNit);
-    parser_parseSection(&rawData, pidNit);
-    printf("Table ID: %i\nSection length: %i\nNetwork ID: %i\nVersion: %i\nSection: %i/%i\n",
-            nit.tableID, nit.sectnLngth, nit.netID, nit.versionNum, nit.sectnNum, nit.lastSectnNum);
-//    printf("Network dscr len: %i\nTransport dscr loop len: %i\nTransport dscr len: %i\nDscr tag: %i\nDscr len: %i\n",
-//           nit.netDscrLngth, nit.trnspStrLpLngth, nit.trnspStream.trnspDscrLngth, nit.trnspStream.dscrTag, nit.trnspStream.dscrLen);
-    printf("loop pointers: %i\n", nit.dscrLoopPtrsNum);
+    /* Get all sections */
+    for(i = 0; i < TABLE_SECTIONS_MAX_NUM; i++){
+        parser_getSection(&rawData, pidNit);
+        parser_parseSection(&rawData, pidNit);
+        /* Reduce number of parse iterations to number of sections */
+        if(i >= nit.lastSectnNum){
+            break;
+        }
+    }
+
+    printf("Table ID: %i\nSection length: %i\nNetwork ID: %i\nVersion: %i\nSections: %i\n",
+            nit.tableID, nit.sectnLngth, nit.netID, nit.versionNum, nit.lastSectnNum);
+    printf("Freq list tag: %i\n", freqListDscr.dscrTag);
+    printf("Service list tag: %i\n", srvcLstDscr.dscrTag);
+    printf("Sat dlvr tag: %i\n", satDlvrSysDscr.dscrTag);
+    printf("Sat frequency is: %i%i%i,%i%i%i%i%i GHz\n", satDlvrSysDscr.frequency[0], satDlvrSysDscr.frequency[1],
+           satDlvrSysDscr.frequency[2], satDlvrSysDscr.frequency[3], satDlvrSysDscr.frequency[4], satDlvrSysDscr.frequency[5],
+           satDlvrSysDscr.frequency[6], satDlvrSysDscr.frequency[7]);
 
     file_closeFile();    
 

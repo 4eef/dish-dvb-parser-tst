@@ -2,7 +2,7 @@
 
 /* Memory */
 netInfoTable_type nit;
-dummyDscr_type dummyDscr;
+dummyDscr_type dummyDscr[DESCRIPTORS_POSSIBLE_NUM];
 srvcLstDscr_type srvcLstDscr;
 freqListDscr_type freqListDscr;
 satDlvrSysDscr_type satDlvrSysDscr;
@@ -10,14 +10,13 @@ terrDlvrSysDscr_type terrDlvrSysDscr;
 
 
 /* Inner mechanisms function prototypes */
-void nitInit(void);
 uint8_t parseNit(void *pRawSctn);
 void parseNetNameDscr(void *pRawSctn);
-uint8_t parseTrnspLoop(uint16_t loopLngth, void *pRawSctn);
-uint8_t parseSrvcLstDscr(void *pRawSctn);
-uint8_t parseFreqListDscr(void *pRawSctn);
-uint8_t parseSatDlvrSysDscr(void *pRawSctn);
-uint8_t parseTerrDlvrSysDscr(void *pRawSctn);
+void parseTrnspLoop(void *pRawSctn);
+void parseSrvcLstDscr(void *pRawSctn);
+void parseFreqListDscr(void *pRawSctn);
+void parseSatDlvrSysDscr(void *pRawSctn);
+void parseTerrDlvrSysDscr(void *pRawSctn);
 
 
 /* Interface functions */
@@ -120,6 +119,10 @@ uint8_t parser_getSection(void *pRawSctn, ePidVals_type pidValue){
                     return SECTION_CONTINUITY_ERR;
                 }
                 contCnt++;
+                /* Overflow control */
+                if(contCnt >= CONT_CNT_MAX_NUM){
+                    contCnt = 0;
+                }
                 /* for() used instead of memcpy() for purpose */
                 for(i = 0; i < numToCpy; i++){
                     if(fullSctnLngth != 0){
@@ -205,7 +208,7 @@ uint8_t parseNit(void *pRawSctn){
     pRawSctnCopy++;
     /* Check transport descriptors length */
     if(nit.trnspStrLpLngth != 0){
-        nit.dscrLoopPtrsNum = parseTrnspLoop(nit.trnspStrLpLngth, pRawSctnCopy);
+        parseTrnspLoop(pRawSctnCopy);
         pRawSctnCopy += nit.trnspStrLpLngth;
     }
     nit.CRC32 = *pRawSctnCopy << 24;
@@ -237,59 +240,178 @@ void parseNetNameDscr(void *pRawSctn){
     }
 }
 
-/* Transport dtream loop parse function */
-uint8_t parseTrnspLoop(uint16_t loopLngth, void *pRawSctn){
-    uint8_t i, *pRawSctnCopy, trnspNum = 0, dscrTag, numToCopy = 0;
-    uint16_t loopLngthCopy = loopLngth, dscrsLngth = 0;
+/* Transport stream loop parse function */
+void parseTrnspLoop(void *pRawSctn){
+    uint8_t i, *pRawSctnCopy, dscrTag;
+    int16_t tsLoopLngthCopy = (int16_t)nit.trnspStrLpLngth, dscrLngth = 0, tsLngth = 0;
     pRawSctnCopy = pRawSctn;
 
-    do{
+    while(tsLoopLngthCopy > 0){
+        // printf("TS loop len = %i\n", tsLoopLngthCopy);
         /* Get TS header */
-        nit.pTrnspStream[trnspNum]->trnspStrID = *pRawSctnCopy << 8;
+        nit.trnspStream[nit.tsNum].trnspStrID = *pRawSctnCopy << 8;
         pRawSctnCopy++;
-        nit.pTrnspStream[trnspNum]->trnspStrID |= *pRawSctnCopy;
+        nit.trnspStream[nit.tsNum].trnspStrID |= *pRawSctnCopy;
         pRawSctnCopy++;
-        nit.pTrnspStream[trnspNum]->origNetID = *pRawSctnCopy << 8;
+        nit.trnspStream[nit.tsNum].origNetID = *pRawSctnCopy << 8;
         pRawSctnCopy++;
-        nit.pTrnspStream[trnspNum]->origNetID |= *pRawSctnCopy;
+        nit.trnspStream[nit.tsNum].origNetID |= *pRawSctnCopy;
         pRawSctnCopy++;
-        nit.pTrnspStream[trnspNum]->trnspDscrLngth = (*pRawSctnCopy << 8) & SECTION_DSCR_LEN_MASK;
+        nit.trnspStream[nit.tsNum].trnspDscrLngth = (*pRawSctnCopy << 8) & SECTION_DSCR_LEN_MASK;
         pRawSctnCopy++;
-        nit.pTrnspStream[trnspNum]->trnspDscrLngth |= *pRawSctnCopy;
+        nit.trnspStream[nit.tsNum].trnspDscrLngth |= *pRawSctnCopy;
         pRawSctnCopy++;
-        dscrsLngth = nit.pTrnspStream[trnspNum]->trnspDscrLngth;
-        do{
-            /* Get descriptor tag */
+        tsLngth = (int16_t)nit.trnspStream[nit.tsNum].trnspDscrLngth;
+        tsLoopLngthCopy -= (TS_HEADER_SIZE_BYTE + nit.trnspStream[nit.tsNum].trnspDscrLngth);
+        while(tsLngth > 0){
+            // printf("TS len = %i\n", tsLngth);
+            /* Get descriptor tag and length */
             dscrTag = *pRawSctnCopy;
+            pRawSctnCopy++;
+            dscrLngth = *pRawSctnCopy;
+            pRawSctnCopy++;
+            // printf("Descriptor len = %i\n", dscrLngth);
+            tsLngth -= (DESCRIPTOR_HEADER_SIZE_BYTE + dscrLngth);
             switch(dscrTag){
-//                case dscrServLst:
-//                    break;
-//                case dscrSatDlvrSys:
-//                    break;
-//                case dscrTerrDlvrSys:
-//                    break;
-//                case dscrFreqList:
-//                    break;
+                case dscrServLst:
+                    /* Set pointer */
+                    nit.trnspStream[nit.tsNum].pTrnspDscr[nit.trnspStream[nit.tsNum].dscrPtrsNum] = &srvcLstDscr;
+                    nit.trnspStream[nit.tsNum].dscrPtrsNum++;
+                    srvcLstDscr.dscrTag = dscrTag;
+                    srvcLstDscr.dscrLngth = dscrLngth;
+                    parseSrvcLstDscr(pRawSctnCopy);
+                    break;
+                case dscrSatDlvrSys:
+                    /* Set pointer */
+                    nit.trnspStream[nit.tsNum].pTrnspDscr[nit.trnspStream[nit.tsNum].dscrPtrsNum] = &satDlvrSysDscr;
+                    nit.trnspStream[nit.tsNum].dscrPtrsNum++;
+                    satDlvrSysDscr.dscrTag = dscrTag;
+                    satDlvrSysDscr.dscrLngth = dscrLngth;
+                    parseSatDlvrSysDscr(pRawSctnCopy);
+                    break;
+                case dscrTerrDlvrSys:
+                    /* Set pointer */
+                    nit.trnspStream[nit.tsNum].pTrnspDscr[nit.trnspStream[nit.tsNum].dscrPtrsNum] = &terrDlvrSysDscr;
+                    nit.trnspStream[nit.tsNum].dscrPtrsNum++;
+                    terrDlvrSysDscr.dscrTag = dscrTag;
+                    terrDlvrSysDscr.dscrLngth = dscrLngth;
+                    parseTerrDlvrSysDscr(pRawSctnCopy);
+                    break;
+                case dscrFreqList:
+                    /* Set pointer */
+                    nit.trnspStream[nit.tsNum].pTrnspDscr[nit.trnspStream[nit.tsNum].dscrPtrsNum] = &freqListDscr;
+                    nit.trnspStream[nit.tsNum].dscrPtrsNum++;
+                    freqListDscr.dscrTag = dscrTag;
+                    freqListDscr.dscrLngth = dscrLngth;
+                    parseFreqListDscr(pRawSctnCopy);
+                    break;
                 default:
-                    /* Get descriptor length */
-                    pRawSctnCopy++;
-                    numToCopy = *pRawSctnCopy;
-                    pRawSctnCopy++;
-                    /* Preset pointer to a next descriptor */
-                    pRawSctnCopy += numToCopy;
-                    dscrsLngth -= (DESCRIPTOR_HEADER_SIZE_BYTE + numToCopy);
                     /* Set pointer to a dummy descriptor */
-                    nit.pTrnspStream[trnspNum]->pTrnspDscr[nit.pTrnspStream[trnspNum]->dscrPtrsNum] = &dummyDscr;
-                    nit.pTrnspStream[trnspNum]->dscrPtrsNum++;
-                    dummyDscr.dscrTag = dscrDummy;
+                    nit.trnspStream[nit.tsNum].pTrnspDscr[nit.trnspStream[nit.tsNum].dscrPtrsNum] =
+                        &dummyDscr[nit.tsNum + nit.trnspStream[nit.tsNum].dscrPtrsNum];
+                    nit.trnspStream[nit.tsNum].dscrPtrsNum++;
+                    dummyDscr[nit.tsNum + nit.trnspStream[nit.tsNum].dscrPtrsNum].dscrTag = dscrTag;//dscrDummy;
+                    dummyDscr[nit.tsNum + nit.trnspStream[nit.tsNum].dscrPtrsNum].dscrLngth = dscrLngth;
                     break;
             }
-            dscrsLngth -= (DESCRIPTOR_HEADER_SIZE_BYTE + numToCopy);
-        }while(dscrsLngth != 0);
-        trnspNum++;
-        loopLngthCopy -= (TS_HEADER_SIZE_BYTE + dscrsLngth);
-    }while(loopLngthCopy != 0);
+            /* Preset pointer to a next descriptor */
+            pRawSctnCopy += dscrLngth;
+        }
+        nit.tsNum++;
+    }
+}
 
-    return trnspNum;
+/* Parse service list descriptor and copy data */
+void parseSrvcLstDscr(void *pRawSctn){
+    uint8_t i, *pRawSctnCopy, srvcNum = 0;
+    int16_t dscrLngth = (int16_t)srvcLstDscr.dscrLngth;
+    pRawSctnCopy = pRawSctn;
+
+    while(dscrLngth > 0){
+        srvcLstDscr.srvcID[srvcNum] = *pRawSctnCopy << 8;
+        pRawSctnCopy++;
+        dscrLngth--;
+        srvcLstDscr.srvcID[srvcNum] |= *pRawSctnCopy;
+        pRawSctnCopy++;
+        dscrLngth--;
+        srvcLstDscr.srvcType[srvcNum] = *pRawSctnCopy;
+        pRawSctnCopy++;
+        dscrLngth--;
+        srvcNum++;
+    }
+    if(dscrLngth < 0){
+        printf("Service descriptor underrun\n");
+    }
+    srvcLstDscr.srvcNum = srvcNum;
+}
+
+/* Parse frequency list descriptor and copy data */
+void parseFreqListDscr(void *pRawSctn){
+    uint8_t i, *pRawSctnCopy, freqsNum = 0;
+    int16_t dscrLngth = (int16_t)freqListDscr.dscrLngth;
+    pRawSctnCopy = pRawSctn;
+
+    freqListDscr.codingType = (*pRawSctnCopy >> 6) & 0x3;
+    pRawSctnCopy++;
+    dscrLngth--;
+    while(dscrLngth > 0){
+        for(i = 0; i < FREQUENCY_SYMBOLS_NUM; i++){
+            freqListDscr.centreFreq[i][freqsNum] = (*pRawSctnCopy >> (((i%2) == 0)?(4):(0))) & BCD_VAL_MSK;
+            if((i % 2) != 0){
+                pRawSctnCopy++;
+                dscrLngth--;
+            }
+        }
+        freqsNum++;
+    }
+    if(dscrLngth < 0){
+        printf("Frequency list descriptor underrun\n");
+    }
+    freqListDscr.freqsNum = freqsNum;
+}
+
+/* Parse satellite delivery system descriptor and copy data */
+void parseSatDlvrSysDscr(void *pRawSctn){
+    uint8_t i, *pRawSctnCopy;
+    pRawSctnCopy = pRawSctn;
+
+    /* Get frequency value */
+    for(i = 0; i < FREQUENCY_SYMBOLS_NUM; i++){
+        satDlvrSysDscr.frequency[i] = (*pRawSctnCopy >> (((i%2) == 0)?(4):(0))) & BCD_VAL_MSK;
+        if((i % 2) != 0){
+            pRawSctnCopy++;
+        }
+    }
+    /* Get orbotal powition value */
+    for(i = 0; i < ORBPOS_SYMBOLS_NUM; i++){
+        satDlvrSysDscr.orbPosition[i] = (*pRawSctnCopy >> (((i%2) == 0)?(4):(0))) & BCD_VAL_MSK;
+        if((i % 2) != 0){
+            pRawSctnCopy++;
+        }
+    }
+    /* Get other parameters */
+    satDlvrSysDscr.eastWest = (*pRawSctnCopy & EAST_WEST_MSK) >> 7;
+    satDlvrSysDscr.polarization = (*pRawSctnCopy & POLARIZATION_MSK) >> 5;
+    satDlvrSysDscr.rollOff_00 = (*pRawSctnCopy & ROLL_OFF_MSK) >> 3;
+    satDlvrSysDscr.modSys = (*pRawSctnCopy & MOD_SYS_MSK) >> 2;
+    satDlvrSysDscr.modType = *pRawSctnCopy & MOD_TYPE_MSK;
+    pRawSctnCopy++;
+    /* Get symbol rate */
+    for(i = 0; i < SYMRATE_SYMBOLS_NUM; i++){
+        satDlvrSysDscr.symRate[i] = (*pRawSctnCopy >> (((i%2) == 0)?(4):(0))) & BCD_VAL_MSK;
+        if((i % 2) != 0){
+            pRawSctnCopy++;
+        }
+    }
+    /* Get FEC */
+    satDlvrSysDscr.fecInner = *pRawSctnCopy & FEC_INNER_MASK;
+}
+
+/* Parse terrestrial delivery system descriptor and copy data */
+void parseTerrDlvrSysDscr(void *pRawSctn){
+    uint8_t i, *pRawSctnCopy;
+    pRawSctnCopy = pRawSctn;
+
+    //terrDlvrSysDscr
 }
 

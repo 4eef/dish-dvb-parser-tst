@@ -36,3 +36,4 @@ uint8_t parser_getSection(void *pRawSctn, ePidVals_type pidValue);
 uint8_t parser_parseSection(void *pRawSctn, ePidVals_type pidValue);
 
 #endif /* PARSER_H */
+

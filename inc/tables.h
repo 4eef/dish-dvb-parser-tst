@@ -33,11 +33,23 @@
 #define SECTION_VERS_NUM_MASK           0x3E
 #define SECTION_CURR_TEX_IND_MASK       0x1
 #define SECTION_DSCR_LEN_MASK           0xFFF
-#define NET_NAME_DSCR_NAME_LNGTH        256
+#define DESCRIPTOR_POSSIBLE_LEN         256
 #define NIT_TABLES_NUM                  2
 #define DESCRIPTORS_POSSIBLE_NUM        256
 #define TS_HEADER_SIZE_BYTE             6
 #define DESCRIPTOR_HEADER_SIZE_BYTE     2
+#define FREQUENCY_SYMBOLS_NUM           8
+#define ORBPOS_SYMBOLS_NUM              4
+#define SYMRATE_SYMBOLS_NUM             7
+#define BCD_VAL_MSK                     0xF
+#define EAST_WEST_MSK                   0x80
+#define POLARIZATION_MSK                0x60
+#define ROLL_OFF_MSK                    0x18
+#define MOD_SYS_MSK                     0x4
+#define MOD_TYPE_MSK                    0x3
+#define FEC_INNER_MASK                  0xF
+#define TABLE_SECTIONS_MAX_NUM          256
+#define CONT_CNT_MAX_NUM                16
 
 /* Typedefs */
 
@@ -95,34 +107,35 @@ typedef struct{
 typedef struct{
     uint8_t             dscrTag;
     uint8_t             dscrLngth;
-    char                name[NET_NAME_DSCR_NAME_LNGTH];
+    char                name[DESCRIPTOR_POSSIBLE_LEN];
 }netNameDscr_type;
 
 typedef struct{
     uint8_t             dscrTag;
     uint8_t             dscrLngth;
-    uint16_t            *pSrvcID;
-    uint8_t             *pSrvcType;
+    uint8_t             srvcNum;
+    uint16_t            srvcID[DESCRIPTOR_POSSIBLE_LEN];
+    uint8_t             srvcType[DESCRIPTOR_POSSIBLE_LEN];
 }srvcLstDscr_type;
 
 typedef struct{
     uint8_t             dscrTag;
     uint8_t             dscrLngth;
-    uint32_t            frequency;
-    uint16_t            orbPosition;
+    uint8_t             frequency[FREQUENCY_SYMBOLS_NUM];
+    uint8_t             orbPosition[ORBPOS_SYMBOLS_NUM];
     uint8_t             eastWest;
     uint8_t             polarization;
     uint8_t             rollOff_00;
     uint8_t             modSys;
     uint8_t             modType;
-    uint32_t            symRate;
+    uint8_t             symRate[SYMRATE_SYMBOLS_NUM];
     uint8_t             fecInner;
 }satDlvrSysDscr_type;
 
 typedef struct{
     uint8_t             dscrTag;
     uint8_t             dscrLngth;
-    uint32_t            centreFreq;
+    uint8_t             centreFreq;
     uint8_t             bandwidth;
     uint8_t             priority;
     uint8_t             timSlicInd;
@@ -141,7 +154,8 @@ typedef struct{
     uint8_t             dscrTag;
     uint8_t             dscrLngth;
     uint8_t             codingType;
-    uint32_t            *pCentreFreq;
+    uint8_t             freqsNum;
+    uint32_t            centreFreq[FREQUENCY_SYMBOLS_NUM][DESCRIPTOR_POSSIBLE_LEN];
 }freqListDscr_type;
 /*
 typedef struct{
@@ -338,8 +352,8 @@ typedef struct{
     uint16_t            netDscrLngth;
     netNameDscr_type    netDscr;
     uint16_t            trnspStrLpLngth;
-    uint8_t             dscrLoopPtrsNum;
-    trnspStream_type    *pTrnspStream[DESCRIPTORS_POSSIBLE_NUM];
+    uint8_t             tsNum;
+    trnspStream_type    trnspStream[DESCRIPTORS_POSSIBLE_NUM];
     uint32_t            CRC32;
 }netInfoTable_type;
 
